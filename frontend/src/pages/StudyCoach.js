@@ -74,16 +74,40 @@ const StudyCoach = () => {
       const result = await executeCoachWorkflow(coachRequest);
 
       if (result.success) {
-        const mockPlan = {
-          diagnosis: result.diagnosis || {},
-          studyPlan: result.study_plan || { overview: '', weeks: [] },
+        // Map backend response directly - all data from AI model
+        const studyPlanData = result.study_plan || {};
+        
+        // Convert milestones to weeks format for display
+        const weeks = (studyPlanData.milestones || []).map((milestone) => ({
+          week: milestone.week,
+          focus: milestone.focus,
+          goals: milestone.goals || [],
+          activities: [] // Backend doesn't provide activities, but we can derive from goals
+        }));
+
+        const studyPlan = {
+          diagnosis: result.diagnosis || {
+            strong_topics: [],
+            weak_topics: [],
+            learning_gaps: [],
+            overall_level: 'average'
+          },
+          studyPlan: {
+            overview: `${studyPlanData.duration_weeks || 8}-week personalized study plan to ${studyPlanData.goal || 'improve academic performance'}`,
+            weeks: weeks
+          },
           resources: result.resources || [],
-          milestones: result.feedback?.milestones || [],
-          recommendations: result.feedback?.recommendations || []
+          milestones: (studyPlanData.milestones || []).map((m) => ({
+            week: m.week,
+            milestone: m.focus,
+            target: m.goals?.[0] || 'Complete week goals'
+          })),
+          recommendations: result.feedback?.next_steps || result.feedback?.motivational_note ? 
+            [result.feedback.motivational_note, ...result.feedback.next_steps] : []
         };
 
-        setStudyPlan(mockPlan);
-        updateStudyPlan(mockPlan);
+        setStudyPlan(studyPlan);
+        updateStudyPlan(studyPlan);
       } else {
         throw new Error(result.error || 'Failed to generate study plan');
       }
@@ -202,41 +226,73 @@ const StudyCoach = () => {
               {tabValue === 0 && (
                 <Box>
                   <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Learning Diagnosis
+                    Learning Diagnosis (AI Analysis)
                   </Typography>
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
                       <Paper sx={{ p: 3, bgcolor: '#d1fae5', height: '100%' }}>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom color="success.dark">
-                          Strengths
+                          Strong Topics
                         </Typography>
                         <List dense>
-                          {studyPlan.diagnosis.strengths.map((strength, index) => (
+                          {(studyPlan.diagnosis.strong_topics || []).map((topic, index) => (
                             <ListItem key={index}>
                               <ListItemIcon>
                                 <CheckCircle color="success" />
                               </ListItemIcon>
-                              <ListItemText primary={strength} />
+                              <ListItemText primary={topic} />
                             </ListItem>
                           ))}
+                          {(!studyPlan.diagnosis.strong_topics || studyPlan.diagnosis.strong_topics.length === 0) && (
+                            <ListItem>
+                              <ListItemText primary="No strong topics identified yet" secondary="Complete more assessments" />
+                            </ListItem>
+                          )}
                         </List>
                       </Paper>
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <Paper sx={{ p: 3, bgcolor: '#fef3c7', height: '100%' }}>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom color="warning.dark">
-                          Areas for Improvement
+                          Weak Topics (Focus Areas)
                         </Typography>
                         <List dense>
-                          {studyPlan.diagnosis.weaknesses.map((weakness, index) => (
+                          {(studyPlan.diagnosis.weak_topics || []).map((topic, index) => (
                             <ListItem key={index}>
                               <ListItemIcon>
                                 <TrendingUp color="warning" />
                               </ListItemIcon>
-                              <ListItemText primary={weakness} />
+                              <ListItemText primary={topic} />
+                            </ListItem>
+                          ))}
+                          {(!studyPlan.diagnosis.weak_topics || studyPlan.diagnosis.weak_topics.length === 0) && (
+                            <ListItem>
+                              <ListItemText primary="No weak topics identified" secondary="Great job!" />
+                            </ListItem>
+                          )}
+                        </List>
+                      </Paper>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Paper sx={{ p: 3, bgcolor: '#ede9fe' }}>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom color="primary.dark">
+                          Learning Gaps & Recommendations
+                        </Typography>
+                        <List dense>
+                          {(studyPlan.diagnosis.learning_gaps || []).map((gap, index) => (
+                            <ListItem key={index}>
+                              <ListItemIcon>
+                                <School color="primary" />
+                              </ListItemIcon>
+                              <ListItemText primary={gap} />
                             </ListItem>
                           ))}
                         </List>
+                        <Box sx={{ mt: 2, p: 2, bgcolor: 'white', borderRadius: 1 }}>
+                          <Typography variant="body2" fontWeight={600}>
+                            Overall Level: <Chip label={studyPlan.diagnosis.overall_level} color="primary" size="small" />
+                          </Typography>
+                        </Box>
                       </Paper>
                     </Grid>
                   </Grid>
@@ -322,23 +378,29 @@ const StudyCoach = () => {
               {tabValue === 2 && (
                 <Box>
                   <Typography variant="h6" fontWeight={600} gutterBottom>
-                    Recommended Learning Resources
+                    AI-Recommended Learning Resources
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    These resources are personalized based on your learning profile and weak areas
                   </Typography>
                   <Grid container spacing={3}>
-                    {studyPlan.resources.map((resource, index) => (
+                    {(studyPlan.resources || []).map((resource, index) => (
                       <Grid item xs={12} md={6} key={index}>
-                        <Card variant="outlined" sx={{ height: '100%' }}>
+                        <Card variant="outlined" sx={{ height: '100%', transition: 'all 0.3s', '&:hover': { boxShadow: 3 } }}>
                           <CardContent>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                               <MenuBook sx={{ color: 'primary.main', mr: 1 }} />
-                              <Chip label={resource.type} size="small" color="primary" />
+                              <Chip label={resource.type || 'Resource'} size="small" color="primary" />
+                              {resource.topic && <Chip label={resource.topic} size="small" sx={{ ml: 1 }} />}
                             </Box>
                             <Typography variant="h6" fontWeight={600} gutterBottom>
                               {resource.title}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              {resource.description}
-                            </Typography>
+                            {resource.description && (
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                {resource.description}
+                              </Typography>
+                            )}
                             <Button
                               variant="outlined"
                               size="small"
@@ -353,6 +415,15 @@ const StudyCoach = () => {
                         </Card>
                       </Grid>
                     ))}
+                    {(!studyPlan.resources || studyPlan.resources.length === 0) && (
+                      <Grid item xs={12}>
+                        <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'background.default' }}>
+                          <Typography color="text.secondary">
+                            No resources available yet. Try generating a new study plan.
+                          </Typography>
+                        </Paper>
+                      </Grid>
+                    )}
                   </Grid>
                 </Box>
               )}

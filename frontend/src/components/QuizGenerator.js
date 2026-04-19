@@ -60,10 +60,15 @@ const QuizGenerator = ({ open, onClose, subject = 'Mathematics' }) => {
   };
 
   const handleAnswerSelect = (questionId, answerIndex) => {
-    setAnswers({
-      ...answers,
-      [questionId]: answerIndex
-    });
+    // Store the selected answer option (A, B, C, D) not the index
+    const currentQ = quizQuestions.find(q => q.id === questionId);
+    if (currentQ) {
+      const answerLetter = ['A', 'B', 'C', 'D'][answerIndex];
+      setAnswers({
+        ...answers,
+        [questionId]: answerLetter
+      });
+    }
   };
 
   const handleNext = () => {
@@ -83,7 +88,8 @@ const QuizGenerator = ({ open, onClose, subject = 'Mathematics' }) => {
   const calculateScore = async () => {
     let correctAnswers = 0;
     quizQuestions.forEach((q) => {
-      if (answers[q.id] === q.correct) {
+      // Compare user's answer with correct answer from backend
+      if (answers[q.id] === q.correct_answer) {
         correctAnswers++;
       }
     });
@@ -152,12 +158,12 @@ const QuizGenerator = ({ open, onClose, subject = 'Mathematics' }) => {
                   Question {currentQuestion + 1} of {quizQuestions.length}
                 </Typography>
                 <Chip
-                  label={currentQ.difficulty}
+                  label={currentQ?.difficulty || 'Medium'}
                   size="small"
                   color={
-                    currentQ.difficulty === 'Easy'
+                    currentQ?.difficulty === 'beginner' || currentQ?.difficulty === 'Easy'
                       ? 'success'
-                      : currentQ.difficulty === 'Medium'
+                      : currentQ?.difficulty === 'intermediate' || currentQ?.difficulty === 'Medium'
                       ? 'warning'
                       : 'error'
                   }
@@ -168,41 +174,44 @@ const QuizGenerator = ({ open, onClose, subject = 'Mathematics' }) => {
 
             <Card sx={{ mb: 3, bgcolor: 'primary.light', color: 'white' }}>
               <CardContent>
-                <Typography variant="h6">{currentQ.question}</Typography>
+                <Typography variant="h6">{currentQ?.question}</Typography>
               </CardContent>
             </Card>
 
             <FormControl component="fieldset" fullWidth>
               <RadioGroup
-                value={answers[currentQ.id] ?? ''}
-                onChange={(e) => handleAnswerSelect(currentQ.id, parseInt(e.target.value))}
+                value={answers[currentQ?.id] ?? ''}
+                onChange={(e) => handleAnswerSelect(currentQ?.id, ['A', 'B', 'C', 'D'].indexOf(e.target.value))}
               >
-                {currentQ.options.map((option, index) => (
-                  <Card
-                    key={index}
-                    sx={{
-                      mb: 2,
-                      cursor: 'pointer',
-                      border: '2px solid',
-                      borderColor: answers[currentQ.id] === index ? 'primary.main' : 'divider',
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        borderColor: 'primary.light',
-                        boxShadow: 2,
-                      },
-                    }}
-                    onClick={() => handleAnswerSelect(currentQ.id, index)}
-                  >
-                    <CardContent sx={{ py: 2 }}>
-                      <FormControlLabel
-                        value={index}
-                        control={<Radio />}
-                        label={option}
-                        sx={{ width: '100%', m: 0 }}
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
+                {(currentQ?.options || []).map((option, index) => {
+                  const answerLetter = ['A', 'B', 'C', 'D'][index];
+                  return (
+                    <Card
+                      key={index}
+                      sx={{
+                        mb: 2,
+                        cursor: 'pointer',
+                        border: '2px solid',
+                        borderColor: answers[currentQ?.id] === answerLetter ? 'primary.main' : 'divider',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          borderColor: 'primary.light',
+                          boxShadow: 2,
+                        },
+                      }}
+                      onClick={() => handleAnswerSelect(currentQ?.id, index)}
+                    >
+                      <CardContent sx={{ py: 2 }}>
+                        <FormControlLabel
+                          value={answerLetter}
+                          control={<Radio />}
+                          label={option}
+                          sx={{ width: '100%', m: 0 }}
+                        />
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </RadioGroup>
             </FormControl>
           </Box>
@@ -242,13 +251,13 @@ const QuizGenerator = ({ open, onClose, subject = 'Mathematics' }) => {
 
             <Box sx={{ mt: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Answer Review
+                Answer Review (with AI Explanations)
               </Typography>
               {quizQuestions.map((q, index) => (
                 <Card key={q.id} sx={{ mb: 2, textAlign: 'left' }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      {answers[q.id] === q.correct ? (
+                      {answers[q.id] === q.correct_answer ? (
                         <CheckCircle color="success" sx={{ mr: 1 }} />
                       ) : (
                         <Cancel color="error" sx={{ mr: 1 }} />
@@ -257,13 +266,20 @@ const QuizGenerator = ({ open, onClose, subject = 'Mathematics' }) => {
                         Question {index + 1}: {q.question}
                       </Typography>
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Your answer: {q.options[answers[q.id]] || 'Not answered'}
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                      Your answer: {answers[q.id] || 'Not answered'}
                     </Typography>
-                    {answers[q.id] !== q.correct && (
-                      <Typography variant="body2" color="success.main">
-                        Correct answer: {q.options[q.correct]}
+                    {answers[q.id] !== q.correct_answer && (
+                      <Typography variant="body2" color="success.main" sx={{ mb: 1 }}>
+                        Correct answer: {q.correct_answer}
                       </Typography>
+                    )}
+                    {q.explanation && (
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        <Typography variant="body2">
+                          <strong>Explanation:</strong> {q.explanation}
+                        </Typography>
+                      </Alert>
                     )}
                   </CardContent>
                 </Card>
