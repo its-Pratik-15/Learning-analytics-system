@@ -1,0 +1,52 @@
+{
+  "services": [
+    {
+      "type": "web",
+      "name": "ai-study-coach-backend",
+      "env": "python",
+      "plan": "free",
+      "buildCommand": "pip install -r app/requirements.txt",
+      "startCommand": "python app/main.py",
+      "envVars": [
+        {
+          "key": "GROQ_API_KEY",
+          "scope": "run",
+          "sync": false
+        },
+        {
+          "key": "PYTHON_VERSION",
+          "value": "3.10"
+        }
+      ],
+      "healthCheckPath": "/api/health",
+      "healthCheckInterval": 30,
+      "maxInstances": 1,
+      "minInstances": 1,
+      "preDeployCommand": "pip install -r app/requirements.txt",
+      "routes": [
+        {
+          "path": "/api",
+          "matchType": "prefix",
+          "service": "ai-study-coach-backend"
+        }
+      ],
+      "headers": [
+        {
+          "path": "/api/*",
+          "name": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "path": "/api/*",
+          "name": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "path": "/api/*",
+          "name": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
+}

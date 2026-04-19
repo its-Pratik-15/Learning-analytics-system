@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+build
+dist
+.git
+.gitignore
+README.md
+.env
+.DS_Store
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+*.egg-info
+.coverage
+htmlcov
