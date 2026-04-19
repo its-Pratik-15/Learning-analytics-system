@@ -7,7 +7,6 @@ import {
   Typography,
   Button,
   LinearProgress,
-  Chip,
   Avatar,
   Paper,
 } from '@mui/material';

@@ -16,7 +16,6 @@ import {
   Paper,
   List,
   ListItem,
-  ListItemText,
   IconButton,
 } from '@mui/material';
 import {
@@ -25,7 +24,6 @@ import {
   EmojiEvents,
   CheckCircle,
   Delete,
-  Edit,
 } from '@mui/icons-material';
 import { useStudent } from '../context/StudentContext';
 import {
