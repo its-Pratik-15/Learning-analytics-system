@@ -270,9 +270,6 @@ async def rag_status():
         "message": "RAG pipeline is ready" if rag_enabled else "GROQ_API_KEY not configured"
     }
 
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
 
 class AgenticCoachRequest(BaseModel):
     student_id: str = Field(..., description="Student ID")
@@ -442,3 +439,7 @@ async def quiz_status():
         "status": "ready" if quiz_enabled else "unavailable",
         "message": "Quiz generator is ready" if quiz_enabled else "GROQ_API_KEY not configured"
     }
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

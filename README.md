@@ -1,11 +1,382 @@
-# Learning Analytics System
+# AI Study Coach - Learning Analytics System
 
-A machine learning-powered system for predicting student academic performance and identifying at-risk students using educational data analytics. Features a FastAPI backend and interactive web interface.
+A comprehensive AI-powered study coach application with student risk prediction, personalized study plans, RAG-based learning resources, and adaptive quiz generation.
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-green.svg)](https://fastapi.tiangolo.com/)
-[![scikit-learn](https://img.shields.io/badge/scikit--learn-1.6.1-orange.svg)](https://scikit-learn.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+
+- GROQ API Key (free tier available at https://console.groq.com)
+
+### Backend Setup
+
+```bash
+# 1. Clone and navigate
+git clone <repo-url>
+cd Learning-analytics-system
+
+# 2. Create Python environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r app/requirements.txt
+
+# 4. Configure environment
+cp app/.env.example app/.env
+# Edit app/.env and add your GROQ_API_KEY from https://console.groq.com
+
+# 5. Run backend
+python app/main.py
+# Server runs on http://localhost:8000
+# API docs available at http://localhost:8000/docs
+```
+
+### Frontend Setup
+
+```bash
+# 1. Navigate to frontend
+cd frontend
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure API URL (optional)
+# Create .env file in frontend directory:
+# REACT_APP_API_URL=http://localhost:8000
+
+# 4. Start development server
+npm start
+# App runs on http://localhost:3000
+```
+
+### Running Both Together
+
+```bash
+# Terminal 1: Backend
+source venv/bin/activate
+python app/main.py
+
+# Terminal 2: Frontend
+cd frontend
+npm start
+```
+
+### Verify Installation
+
+```bash
+# Run integration tests
+source venv/bin/activate
+python test_full_integration.py
+```
+
+## 📋 API Endpoints
+
+### Core Endpoints
+- `GET /api/health` - Health check
+- `POST /api/predict` - Student risk prediction
+
+### RAG Pipeline
+- `POST /api/rag/query` - Query learning resources
+- `POST /api/rag/recommendations` - Get personalized recommendations
+- `POST /api/rag/subject-help` - Get subject-specific help
+- `POST /api/rag/exam-prep` - Exam preparation guidance
+- `POST /api/rag/add-documents` - Add custom documents
+- `GET /api/rag/status` - RAG pipeline status
+
+### Agentic Coach
+- `POST /api/coach/workflow` - Execute full agentic workflow
+- `GET /api/coach/status` - Coach status
+
+### Quiz Generator
+- `POST /api/quiz/generate` - Generate practice quiz
+- `POST /api/quiz/adaptive` - Generate adaptive quiz
+- `POST /api/quiz/adjust-difficulty` - Adjust difficulty based on performance
+- `GET /api/quiz/status` - Quiz generator status
+
+### API Documentation
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## 🌐 Deployment Guide
+
+### Local Development
+```bash
+# Terminal 1: Backend
+source venv/bin/activate
+python app/main.py
+
+# Terminal 2: Frontend
+cd frontend
+npm start
+```
+
+### Docker Deployment
+
+```bash
+# Build and run with Docker
+docker-compose up --build
+```
+
+### Heroku Deployment
+
+```bash
+# 1. Create Heroku app
+heroku create your-app-name
+
+# 2. Set environment variables
+heroku config:set GROQ_API_KEY=your_key
+
+# 3. Deploy
+git push heroku main
+```
+
+### AWS EC2 Deployment
+
+```bash
+# 1. Create EC2 instance (Ubuntu 22.04)
+# 2. SSH into instance
+ssh -i key.pem ubuntu@your-instance-ip
+
+# 3. Install dependencies
+sudo apt update && sudo apt install python3-pip nodejs npm
+
+# 4. Clone and setup
+git clone <repo-url>
+cd Learning-analytics-system
+
+# 5. Setup backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r app/requirements.txt
+
+# 6. Setup frontend
+cd frontend && npm install && npm run build
+
+# 7. Run with PM2
+npm install -g pm2
+pm2 start "python app/main.py" --name backend
+pm2 start "npm start" --name frontend --cwd frontend
+pm2 save
+pm2 startup
+```
+
+### Vercel + Railway Deployment
+
+**Frontend (Vercel):**
+```bash
+npm install -g vercel
+vercel
+```
+
+**Backend (Railway):**
+- Connect GitHub repo to Railway
+- Set GROQ_API_KEY environment variable
+- Deploy
+
+### Production Checklist
+- [ ] Set GROQ_API_KEY environment variable
+- [ ] Configure CORS for your domain
+- [ ] Enable HTTPS
+- [ ] Set up database backups
+- [ ] Configure logging and monitoring
+- [ ] Test all endpoints
+- [ ] Set up error tracking (Sentry)
+- [ ] Configure rate limiting
+
+## 🔧 Configuration
+
+### Environment Variables
+
+```env
+# Backend (.env)
+GROQ_API_KEY=your_groq_api_key
+FLASK_ENV=production
+DEBUG=False
+```
+
+### Frontend (.env)
+
+```env
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_NAME=AI Study Coach
+```
+
+## 🆘 Troubleshooting
+
+### Backend Issues
+
+**Issue: "GROQ_API_KEY not set" warning**
+- Solution: Create `app/.env` file with your GROQ API key from https://console.groq.com
+
+**Issue: "RAG pipeline initialization failed"**
+- Solution: Ensure GROQ_API_KEY is set and you have internet connection
+- Check: `curl http://localhost:8000/api/rag/status`
+
+**Issue: "Port 8000 already in use"**
+- Solution: Kill existing process or use different port
+- Command: `lsof -i :8000` then `kill -9 <PID>`
+
+**Issue: "Module not found" errors**
+- Solution: Reinstall dependencies
+- Command: `pip install -r app/requirements.txt --force-reinstall`
+
+### Frontend Issues
+
+**Issue: "Cannot find module" errors**
+- Solution: Clear node_modules and reinstall
+- Commands:
+  ```bash
+  rm -rf node_modules package-lock.json
+  npm install
+  ```
+
+**Issue: "API connection refused"**
+- Solution: Ensure backend is running on http://localhost:8000
+- Check: `curl http://localhost:8000/api/health`
+
+**Issue: CORS errors**
+- Solution: Backend CORS is already configured for all origins
+- If issues persist, check browser console for specific error
+
+### Common Solutions
+
+```bash
+# Clear all caches and reinstall
+rm -rf venv node_modules
+python -m venv venv
+source venv/bin/activate
+pip install -r app/requirements.txt
+cd frontend && npm install
+
+# Test backend
+python app/test_production_rag.py
+
+# Test frontend build
+cd frontend && npm run build
+
+# Check logs
+tail -f app.log
+```
+
+## 📊 Features
+
+### Student Analysis
+- 32+ student attributes analysis
+- Risk level prediction (At-risk, Average, High-performing)
+- Confidence scoring
+- Real-time analytics dashboard
+
+### AI Study Coach
+- Personalized study plan generation
+- Learning diagnosis with strengths and weaknesses
+- Weekly milestone tracking
+- Adaptive recommendations based on risk level
+- PDF export of study plans
+
+### RAG Pipeline
+- Document retrieval and ranking
+- Subject-specific learning resources
+- Exam preparation guidance
+- Real-time resource recommendations
+- Semantic search with reranking
+
+### Quiz Generator
+- AI-generated practice questions
+- Adaptive difficulty adjustment
+- Performance tracking
+- Multi-subject support
+- Instant feedback on answers
+
+### Dashboard
+- Student performance overview
+- Progress tracking
+- Resource recommendations
+- Study plan management
+- Performance analytics
+
+## 🧪 Testing
+
+### Run Integration Tests
+
+```bash
+# Comprehensive test suite (no server required)
+source venv/bin/activate
+python test_full_integration.py
+```
+
+### Backend Testing
+
+```bash
+# Test prediction service
+python app/test_production_rag.py
+
+# Test agentic features
+python app/test_agentic_features.py
+
+# Test API endpoints (with server running)
+curl -X GET http://localhost:8000/api/health
+curl -X POST http://localhost:8000/api/predict -H "Content-Type: application/json" -d @student_data.json
+```
+
+### Frontend Testing
+
+```bash
+cd frontend
+npm test
+npm run build
+```
+
+### Full Integration Test
+
+1. Start backend: `python app/main.py`
+2. Start frontend: `cd frontend && npm start`
+3. Navigate to http://localhost:3000
+4. Test Student Analysis page with sample data
+5. Test Study Coach with generated study plan
+6. Test Quiz Generator
+7. Test PDF export functionality
+
+## 📈 Performance Optimization
+
+- FAISS vector indexing for fast retrieval
+- Sentence transformers for semantic search
+- Groq LLM for fast inference
+- React code splitting and lazy loading
+- Material-UI optimized components
+
+## 🔐 Security
+
+- CORS enabled for frontend
+- Environment variable protection
+- Input validation on all endpoints
+- Rate limiting recommended for production
+
+## 📱 Browser Support
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Open pull request
+
+## 📄 License
+
+MIT License - see LICENSE file
+
+## 🆘 Support
+
+For issues and questions:
+- GitHub Issues: [Create an issue](https://github.com/your-repo/issues)
+- Email: support@aistudycoach.com
 
 ## Table of Contents
 
@@ -419,5 +790,7 @@ Pratik Kumar Pan - [@its-Pratik-15](https://github.com/its-Pratik-15)
 Project Link: [https://github.com/its-Pratik-15/Learning-analytics-system](https://github.com/its-Pratik-15/Learning-analytics-system)
 
 ---
+
+© 2026 AI Study Coach. All rights reserved.
 
 If you find this project useful, please consider giving it a star!

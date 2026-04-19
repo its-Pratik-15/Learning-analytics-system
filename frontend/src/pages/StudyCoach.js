@@ -46,40 +46,104 @@ const StudyCoach = () => {
   const [studyPlan, setStudyPlan] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Generate AI Study Plan based on student data and risk analysis
+  // Generate AI Study Plan using agentic coach
   const generateStudyPlan = async () => {
     setLoading(true);
+    setError(null);
     
     try {
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      if (!studentData || !riskAnalysis) {
+        setError('Please complete student analysis first');
+        setLoading(false);
+        return;
+      }
 
-      // Generate personalized plan based on actual student data
+      // Prepare request for agentic coach
+      const coachRequest = {
+        student_id: `student_${Date.now()}`,
+        risk_level: riskAnalysis.risk_level.toLowerCase(),
+        current_grade: (studentData.G1 + studentData.G2) / 2,
+        study_time: studentData.studytime,
+        weak_areas: identifyWeakAreas(),
+        strengths: identifyStrengths(),
+        goal: goal || 'Improve academic performance',
+        performance_data: {
+          absences: studentData.absences,
+          failures: studentData.failures,
+          family_support: studentData.famsup === 'yes',
+          school_support: studentData.schoolsup === 'yes',
+        }
+      };
+
+      // Call agentic coach endpoint
+      const { executeAgenticWorkflow } = await import('../services/api');
+      const result = await executeAgenticWorkflow(coachRequest);
+
+      if (result.success || result.diagnosis) {
+        // Handle both real backend response and fallback
+        const diagnosis = result.diagnosis || generateDiagnosis();
+        const weeks = result.study_plan?.weeks || generateWeeklyPlan();
+        const resources = result.resources || generateResources();
+        const milestones = result.feedback?.milestones || generateMilestones();
+        const recommendations = result.feedback?.recommendations || generateRecommendations();
+
+        setStudyPlan({
+          diagnosis,
+          studyPlan: {
+            overview: result.study_plan?.overview || 'Your personalized study plan has been generated based on your profile and goals.',
+            weeks
+          },
+          resources,
+          recommendations,
+          milestones
+        });
+        updateStudyPlan(result);
+      } else {
+        setError('Failed to generate study plan');
+      }
+    } catch (error) {
+      console.error('Error generating study plan:', error);
+      // Fallback to local generation if backend fails
       const diagnosis = generateDiagnosis();
-      const weeklyPlan = generateWeeklyPlan();
+      const weeks = generateWeeklyPlan();
       const resources = generateResources();
       const milestones = generateMilestones();
       const recommendations = generateRecommendations();
 
-      const mockPlan = {
+      setStudyPlan({
         diagnosis,
         studyPlan: {
-          overview: `A comprehensive ${weeklyPlan.length}-week study plan designed to improve academic performance through structured learning, targeted practice, and skill development based on your current ${riskAnalysis.risk_level} status.`,
-          weeks: weeklyPlan
+          overview: 'Your personalized study plan has been generated based on your profile and goals.',
+          weeks
         },
         resources,
-        milestones,
-        recommendations
-      };
-
-      setStudyPlan(mockPlan);
-      updateStudyPlan(mockPlan);
-    } catch (error) {
-      console.error('Error generating study plan:', error);
+        recommendations,
+        milestones
+      });
+      
+      setError('Using local study plan generation. Connect backend for AI-powered recommendations.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper functions to identify weak and strong areas
+  const identifyWeakAreas = () => {
+    const weak = [];
+    if (studentData.G1 < 10) weak.push('Mathematics');
+    if (studentData.failures > 0) weak.push('Core Subjects');
+    if (studentData.absences > 10) weak.push('Attendance');
+    return weak.length > 0 ? weak : ['General Improvement'];
+  };
+
+  const identifyStrengths = () => {
+    const strong = [];
+    if (studentData.G1 >= 15) strong.push('Mathematics');
+    if (studentData.higher === 'yes') strong.push('Motivation');
+    if (studentData.famsup === 'yes') strong.push('Family Support');
+    return strong.length > 0 ? strong : ['Potential for Growth'];
   };
 
   // Generate diagnosis based on student data
@@ -380,6 +444,13 @@ const StudyCoach = () => {
           Get personalized study plans and recommendations powered by AI
         </Typography>
       </Box>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="warning" onClose={() => setError(null)} sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
 
       {/* Goal Input */}
       <Card sx={{ mb: 4 }}>
