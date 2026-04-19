@@ -50,7 +50,8 @@ const Progress = () => {
     progress: 0,
   });
 
-  // Mock progress data
+  // Mock progress data - This should come from backend in production
+  // For now, using placeholder data structure
   const progressData = [
     { week: 'Week 1', score: 65, studyHours: 10 },
     { week: 'Week 2', score: 70, studyHours: 12 },

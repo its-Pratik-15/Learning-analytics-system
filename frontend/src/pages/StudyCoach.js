@@ -38,6 +38,7 @@ import { useStudent } from '../context/StudentContext';
 import { motion } from 'framer-motion';
 import QuizGenerator from '../components/QuizGenerator';
 import { exportStudyPlanToPDF } from '../utils/pdfExport';
+import { executeCoachWorkflow } from '../services/api';
 
 const StudyCoach = () => {
   const { studentData, riskAnalysis, updateStudyPlan } = useStudent();
@@ -47,307 +48,51 @@ const StudyCoach = () => {
   const [tabValue, setTabValue] = useState(0);
   const [quizOpen, setQuizOpen] = useState(false);
 
-  // Generate AI Study Plan based on student data and risk analysis
+  // Generate AI Study Plan from backend
   const generateStudyPlan = async () => {
     setLoading(true);
     
     try {
-      // Simulate AI processing time
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Generate personalized plan based on actual student data
-      const diagnosis = generateDiagnosis();
-      const weeklyPlan = generateWeeklyPlan();
-      const resources = generateResources();
-      const milestones = generateMilestones();
-      const recommendations = generateRecommendations();
-
-      const mockPlan = {
-        diagnosis,
-        studyPlan: {
-          overview: `A comprehensive ${weeklyPlan.length}-week study plan designed to improve academic performance through structured learning, targeted practice, and skill development based on your current ${riskAnalysis.risk_level} status.`,
-          weeks: weeklyPlan
-        },
-        resources,
-        milestones,
-        recommendations
+      // Prepare request for agentic coach workflow
+      const coachRequest = {
+        student_id: studentData?.school || 'student_001',
+        risk_level: riskAnalysis?.risk_level?.toLowerCase() || 'average',
+        current_grade: studentData?.G2 || 0,
+        study_time: studentData?.studytime || 2,
+        weak_areas: [],
+        strengths: [],
+        goal: goal || 'Improve academic performance',
+        performance_data: {
+          absences: studentData?.absences || 0,
+          failures: studentData?.failures || 0,
+          G1: studentData?.G1 || 0,
+          G2: studentData?.G2 || 0,
+        }
       };
 
-      setStudyPlan(mockPlan);
-      updateStudyPlan(mockPlan);
+      // Call backend agentic coach workflow
+      const result = await executeCoachWorkflow(coachRequest);
+
+      if (result.success) {
+        const mockPlan = {
+          diagnosis: result.diagnosis || {},
+          studyPlan: result.study_plan || { overview: '', weeks: [] },
+          resources: result.resources || [],
+          milestones: result.feedback?.milestones || [],
+          recommendations: result.feedback?.recommendations || []
+        };
+
+        setStudyPlan(mockPlan);
+        updateStudyPlan(mockPlan);
+      } else {
+        throw new Error(result.error || 'Failed to generate study plan');
+      }
     } catch (error) {
       console.error('Error generating study plan:', error);
+      Alert.error('Failed to generate study plan. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  // Generate diagnosis based on student data
-  const generateDiagnosis = () => {
-    const strengths = [];
-    const weaknesses = [];
-    const riskFactors = [];
-
-    if (studentData) {
-      // Analyze strengths
-      if (studentData.absences < 5) strengths.push('Excellent attendance record');
-      if (studentData.studytime >= 3) strengths.push('Good study time allocation');
-      if (studentData.famsup === 'yes') strengths.push('Strong family support system');
-      if (studentData.higher === 'yes') strengths.push('High motivation for higher education');
-      if (studentData.failures === 0) strengths.push('No past academic failures');
-      if (studentData.G1 >= 15 && studentData.G2 >= 15) strengths.push('Consistent good grades');
-
-      // Analyze weaknesses
-      if (studentData.studytime < 2) weaknesses.push('Limited study time - needs improvement');
-      if (studentData.absences > 10) weaknesses.push('High absence rate affecting performance');
-      if (studentData.failures > 0) weaknesses.push(`${studentData.failures} past failure(s) - needs focused attention`);
-      if (studentData.G1 < 10 || studentData.G2 < 10) weaknesses.push('Below average grades in recent periods');
-      if (studentData.activities === 'no') weaknesses.push('Limited extra-curricular engagement');
-      if (studentData.paid === 'no' && studentData.schoolsup === 'no') weaknesses.push('Could benefit from additional tutoring');
-
-      // Risk factors
-      if (riskAnalysis.risk_level === 'At-risk') {
-        riskFactors.push('Currently identified as at-risk student - immediate intervention needed');
-      } else if (riskAnalysis.risk_level === 'Average') {
-        riskFactors.push('Moderate performance - preventive measures recommended');
-      }
-      
-      if (studentData.G2 < studentData.G1) riskFactors.push('Grade trend shows decline - needs attention');
-      if (studentData.goout >= 4) riskFactors.push('High social activity may impact study time');
-      if (studentData.Dalc > 2 || studentData.Walc > 2) riskFactors.push('Lifestyle factors may affect academic performance');
-    }
-
-    // Ensure we have at least some default values
-    if (strengths.length === 0) strengths.push('Enrolled in education program', 'Seeking improvement');
-    if (weaknesses.length === 0) weaknesses.push('Room for optimization in study methods');
-    if (riskFactors.length === 0) riskFactors.push('Regular monitoring recommended');
-
-    return { strengths, weaknesses, riskFactors };
-  };
-
-  // Generate weekly study plan
-  const generateWeeklyPlan = () => {
-    const isAtRisk = riskAnalysis?.risk_level === 'At-risk';
-
-    const plans = [
-      {
-        week: 1,
-        focus: 'Foundation Building & Assessment',
-        goals: [
-          'Complete diagnostic assessment in weak subjects',
-          'Establish daily study routine (2-3 hours minimum)',
-          'Organize study materials and create subject notebooks'
-        ],
-        activities: [
-          'Take practice tests to identify knowledge gaps',
-          'Create a dedicated study space',
-          'Set up study schedule with breaks'
-        ]
-      },
-      {
-        week: 2,
-        focus: 'Core Concept Mastery - Mathematics',
-        goals: [
-          'Master fundamental concepts in Mathematics',
-          'Improve problem-solving skills',
-          'Build strong foundation in weak topics'
-        ],
-        activities: [
-          'Complete 5 math problem sets daily',
-          'Watch Khan Academy tutorials',
-          'Practice with past exam papers'
-        ]
-      },
-      {
-        week: 3,
-        focus: 'Reading & Comprehension Skills',
-        goals: [
-          'Improve reading comprehension',
-          'Enhance vocabulary',
-          'Develop critical thinking'
-        ],
-        activities: [
-          'Read 2 academic articles daily',
-          'Learn 20 new vocabulary words',
-          'Summarize key concepts in own words'
-        ]
-      },
-      {
-        week: 4,
-        focus: 'Mid-Point Review & Adjustment',
-        goals: [
-          'Assess progress and adjust strategies',
-          'Strengthen weak areas identified',
-          'Build confidence through small wins'
-        ],
-        activities: [
-          'Take mid-term assessment',
-          'Review and revise difficult topics',
-          'Celebrate achievements and set new targets'
-        ]
-      },
-      {
-        week: 5,
-        focus: 'Advanced Practice & Application',
-        goals: [
-          'Apply learned concepts to real problems',
-          'Improve problem-solving speed',
-          'Master time management in exams'
-        ],
-        activities: [
-          'Solve 10 practice problems daily',
-          'Join study group sessions',
-          'Complete timed practice tests'
-        ]
-      },
-      {
-        week: 6,
-        focus: 'Final Preparation & Consolidation',
-        goals: [
-          'Consolidate all learned material',
-          'Practice exam techniques',
-          'Build exam confidence'
-        ],
-        activities: [
-          'Complete full-length practice exams',
-          'Review all notes and summaries',
-          'Focus on high-yield topics'
-        ]
-      }
-    ];
-
-    if (isAtRisk) {
-      plans.push(
-        {
-          week: 7,
-          focus: 'Intensive Revision & Support',
-          goals: [
-            'Intensive revision of all topics',
-            'Seek additional help for difficult areas',
-            'Practice stress management'
-          ],
-          activities: [
-            'Daily tutoring or study group sessions',
-            'Complete additional practice sets',
-            'Use relaxation techniques'
-          ]
-        },
-        {
-          week: 8,
-          focus: 'Final Assessment & Future Planning',
-          goals: [
-            'Complete final assessment',
-            'Evaluate overall improvement',
-            'Plan for continued success'
-          ],
-          activities: [
-            'Take comprehensive final test',
-            'Review progress with mentor',
-            'Set long-term academic goals'
-          ]
-        }
-      );
-    }
-
-    return plans;
-  };
-
-  // Generate personalized resources
-  const generateResources = () => {
-    const resources = [
-      {
-        title: 'Khan Academy - Mathematics',
-        url: 'https://www.khanacademy.org/math',
-        type: 'Video Tutorials',
-        description: 'Comprehensive math lessons from basic to advanced topics'
-      },
-      {
-        title: 'Coursera - Learning How to Learn',
-        url: 'https://www.coursera.org/learn/learning-how-to-learn',
-        type: 'Online Course',
-        description: 'Powerful mental tools to help you master tough subjects'
-      },
-      {
-        title: 'Quizlet - Study Sets',
-        url: 'https://quizlet.com/',
-        type: 'Practice Platform',
-        description: 'Flashcards and study games for all subjects'
-      }
-    ];
-
-    // Add specific resources based on student needs
-    if (studentData?.failures > 0 || studentData?.G1 < 12) {
-      resources.push({
-        title: 'MIT OpenCourseWare',
-        url: 'https://ocw.mit.edu/',
-        type: 'Free Courses',
-        description: 'Free lecture notes, exams, and videos from MIT'
-      });
-    }
-
-    resources.push({
-      title: 'Pomodoro Timer',
-      url: 'https://pomofocus.io/',
-      type: 'Productivity Tool',
-      description: 'Time management technique for focused study sessions'
-    });
-
-    return resources;
-  };
-
-  // Generate milestones
-  const generateMilestones = () => {
-    const isAtRisk = riskAnalysis?.risk_level === 'At-risk';
-    
-    return [
-      {
-        week: 2,
-        milestone: 'Complete foundation assessment',
-        target: 'Score 70% or higher on diagnostic tests'
-      },
-      {
-        week: 4,
-        milestone: 'Mid-term progress check',
-        target: isAtRisk ? 'Show 20% improvement in weak subjects' : 'Show 15% improvement'
-      },
-      {
-        week: 6,
-        milestone: 'Advanced concept mastery',
-        target: 'Complete all advanced practice sets with 80%+ accuracy'
-      },
-      ...(isAtRisk ? [{
-        week: 8,
-        milestone: 'Final assessment',
-        target: 'Achieve minimum 25% grade improvement'
-      }] : [])
-    ];
-  };
-
-  // Generate recommendations
-  const generateRecommendations = () => {
-    const recs = [
-      'Study in 25-minute focused sessions with 5-minute breaks (Pomodoro Technique)',
-      'Practice active recall instead of passive reading',
-      'Get adequate sleep (7-8 hours) for better retention',
-      'Exercise regularly to improve focus and reduce stress'
-    ];
-
-    if (studentData) {
-      if (studentData.studytime < 2) {
-        recs.unshift('Increase daily study time to at least 2-3 hours');
-      }
-      if (studentData.famsup === 'no') {
-        recs.push('Seek family support or find a study mentor');
-      }
-      if (studentData.schoolsup === 'no' && studentData.paid === 'no') {
-        recs.push('Consider joining school support programs or study groups');
-      }
-      if (studentData.internet === 'yes') {
-        recs.push('Utilize online learning platforms like Khan Academy and Coursera');
-      }
-    }
-
-    return recs;
   };
 
   const handleSubmit = (e) => {

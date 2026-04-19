@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -12,6 +12,7 @@ import {
   Avatar,
   Tabs,
   Tab,
+  CircularProgress,
 } from '@mui/material';
 import {
   Search,
@@ -26,8 +27,11 @@ import {
   School,
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { getRecommendedResources } from '../services/api';
+import { useStudent } from '../context/StudentContext';
 
-const resources = [
+// Curated default resources (fallback if backend unavailable)
+const defaultResources = [
   {
     id: 1,
     title: 'Khan Academy',
@@ -130,7 +134,7 @@ const resources = [
   },
 ];
 
-const studyTools = [
+const defaultStudyTools = [
   {
     name: 'Pomodoro Timer',
     description: 'Time management technique for focused study',
@@ -154,9 +158,55 @@ const studyTools = [
 ];
 
 const Resources = () => {
+  const { riskAnalysis } = useStudent();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [tabValue, setTabValue] = useState(0);
+  const [resources, setResources] = useState(defaultResources);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch personalized resources from backend
+  useEffect(() => {
+    const fetchResources = async () => {
+      if (!riskAnalysis) return;
+      
+      setLoading(true);
+      try {
+        const profile = {
+          risk_level: riskAnalysis.risk_level || 'Average',
+          current_grade: 0,
+          study_time: 2,
+          weak_areas: [],
+          strengths: []
+        };
+        
+        const result = await getRecommendedResources(profile);
+        
+        if (result.success && result.resources) {
+          // Merge backend resources with default ones
+          const backendResources = result.resources.map((r, idx) => ({
+            id: idx + 100,
+            title: r.title || r.name || 'Resource',
+            description: r.description || '',
+            url: r.url || '#',
+            category: r.category || 'General',
+            type: r.type || 'Resource',
+            icon: <MenuBook />,
+            color: '#6366f1',
+          }));
+          
+          setResources([...backendResources, ...defaultResources]);
+        }
+      } catch (error) {
+        console.error('Error fetching resources:', error);
+        // Use default resources on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchResources();
+  }, [riskAnalysis]);
 
   const categories = ['All', 'Math', 'Science', 'Programming', 'Language', 'General'];
 
@@ -177,6 +227,12 @@ const Resources = () => {
       <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
         Curated collection of the best learning platforms and tools
       </Typography>
+
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
 
       <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ mb: 3 }}>
         <Tab label="Learning Platforms" />
@@ -293,7 +349,7 @@ const Resources = () => {
 
       {tabValue === 1 && (
         <Grid container spacing={3}>
-          {studyTools.map((tool, index) => (
+          {defaultStudyTools.map((tool, index) => (
             <Grid item xs={12} sm={6} key={index}>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}

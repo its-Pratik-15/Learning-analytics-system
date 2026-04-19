@@ -146,10 +146,10 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Improvement"
-            value="+15%"
+            value={riskAnalysis?.improvement_percentage ? `+${riskAnalysis.improvement_percentage}%` : 'N/A'}
             icon={<TrendingUp />}
             color="#ec4899"
-            subtitle="vs last month"
+            subtitle={riskAnalysis?.improvement_percentage ? 'vs last month' : 'Complete analysis first'}
           />
         </Grid>
       </Grid>
