@@ -47,6 +47,7 @@ const StudyCoach = () => {
   const [studyPlan, setStudyPlan] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [quizSubject, setQuizSubject] = useState('Mathematics');
 
   // Generate AI Study Plan from backend
   const generateStudyPlan = async () => {
@@ -76,6 +77,24 @@ const StudyCoach = () => {
       if (result.success) {
         // Map backend response directly - all data from AI model
         const studyPlanData = result.study_plan || {};
+        
+        // Extract subject from goal or weak areas
+        let subject = 'General';
+        if (goal.toLowerCase().includes('math')) subject = 'Mathematics';
+        else if (goal.toLowerCase().includes('science')) subject = 'Science';
+        else if (goal.toLowerCase().includes('english')) subject = 'English';
+        else if (goal.toLowerCase().includes('history')) subject = 'History';
+        else if (goal.toLowerCase().includes('language')) subject = 'Language';
+        else if (studyPlanData.goal) {
+          const goalLower = studyPlanData.goal.toLowerCase();
+          if (goalLower.includes('math')) subject = 'Mathematics';
+          else if (goalLower.includes('science')) subject = 'Science';
+          else if (goalLower.includes('english')) subject = 'English';
+          else if (goalLower.includes('history')) subject = 'History';
+          else if (goalLower.includes('language')) subject = 'Language';
+        }
+        
+        setQuizSubject(subject);
         
         // Convert milestones to weeks format for display
         const weeks = (studyPlanData.milestones || []).map((milestone) => ({
@@ -470,7 +489,7 @@ const StudyCoach = () => {
       )}
 
       {/* Quiz Generator Dialog */}
-      <QuizGenerator open={quizOpen} onClose={() => setQuizOpen(false)} subject="Mathematics" />
+      <QuizGenerator open={quizOpen} onClose={() => setQuizOpen(false)} subject={quizSubject} />
     </Box>
   );
 };
