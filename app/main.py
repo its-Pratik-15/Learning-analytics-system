@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from app.services.predict import predict_student_risk
 from app.services.rag_pipeline import initialize_rag_pipeline
 from app.services.document_loader import DocumentLoader
+from app.services.agentic_coach import get_agentic_coach, StudentProfile
+from app.services.quiz_generator import get_quiz_generator, get_adaptive_engine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -61,6 +63,28 @@ except Exception as e:
     print(f"Warning: RAG pipeline initialization failed: {e}")
     rag_pipeline = None
     rag_enabled = False
+
+# Initialize Agentic Coach
+try:
+    agentic_coach = get_agentic_coach()
+    coach_enabled = agentic_coach.llm is not None
+    logger.info("✓ Agentic study coach initialized")
+except Exception as e:
+    print(f"Warning: Agentic coach initialization failed: {e}")
+    agentic_coach = None
+    coach_enabled = False
+
+# Initialize Quiz Generator
+try:
+    quiz_generator = get_quiz_generator()
+    adaptive_engine = get_adaptive_engine()
+    quiz_enabled = quiz_generator.llm is not None
+    logger.info("✓ Quiz generator and adaptive engine initialized")
+except Exception as e:
+    print(f"Warning: Quiz generator initialization failed: {e}")
+    quiz_generator = None
+    adaptive_engine = None
+    quiz_enabled = False
 
 class StudentData(BaseModel):
     school: str = Field(..., description="Student's school (GP or MS)")
@@ -248,3 +272,173 @@ async def rag_status():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+class AgenticCoachRequest(BaseModel):
+    student_id: str = Field(..., description="Student ID")
+    risk_level: str = Field(..., description="Risk level (low/medium/high)")
+    current_grade: float = Field(..., description="Current grade")
+    study_time: float = Field(..., description="Study time per week")
+    weak_areas: List[str] = Field(..., description="Weak subject areas")
+    strengths: List[str] = Field(..., description="Strong subject areas")
+    goal: str = Field(..., description="Student's learning goal")
+    performance_data: Optional[Dict[str, Any]] = Field(None, description="Historical performance data")
+
+
+# ============================================================================
+# QUIZ GENERATOR MODELS
+# ============================================================================
+
+class QuizGenerationRequest(BaseModel):
+    topic: str = Field(..., description="Topic for quiz")
+    difficulty: str = Field(default="intermediate", description="Difficulty level")
+    question_types: List[str] = Field(default=["mcq"], description="Question types")
+    count: int = Field(default=5, ge=1, le=20, description="Number of questions")
+
+
+class AdaptiveDifficultyRequest(BaseModel):
+    current_difficulty: str = Field(..., description="Current difficulty level")
+    score_percent: float = Field(..., ge=0, le=100, description="Score percentage")
+    attempted: int = Field(..., ge=1, description="Questions attempted")
+    time_taken: float = Field(..., ge=0, description="Time taken in minutes")
+    weak_areas: List[str] = Field(default=[], description="Weak areas identified")
+
+
+@app.post("/api/coach/workflow")
+async def execute_agentic_workflow(request: AgenticCoachRequest):
+    """Execute full agentic workflow: DIAGNOSE → PLAN → RESOURCES → FEEDBACK"""
+    if not coach_enabled or agentic_coach is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Agentic coach is not available. Please set GROQ_API_KEY environment variable."
+        )
+    
+    try:
+        # Create student profile
+        profile = StudentProfile(
+            student_id=request.student_id,
+            risk_level=request.risk_level,
+            current_grade=request.current_grade,
+            study_time=request.study_time,
+            weak_areas=request.weak_areas,
+            strengths=request.strengths,
+            goal=request.goal,
+            performance_data=request.performance_data
+        )
+        
+        # Execute workflow
+        result = agentic_coach.execute_workflow_sync(profile)
+        
+        if not result.success:
+            raise HTTPException(status_code=500, detail=result.error)
+        
+        return {
+            "success": True,
+            "diagnosis": result.diagnosis,
+            "study_plan": result.study_plan,
+            "resources": result.resources,
+            "feedback": result.feedback
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/coach/status")
+async def coach_status():
+    """Check agentic coach status"""
+    return {
+        "enabled": coach_enabled,
+        "status": "ready" if coach_enabled else "unavailable",
+        "message": "Agentic coach is ready" if coach_enabled else "GROQ_API_KEY not configured"
+    }
+
+
+@app.post("/api/quiz/generate")
+async def generate_quiz(request: QuizGenerationRequest):
+    """Generate practice quiz questions"""
+    if not quiz_enabled or quiz_generator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Quiz generator is not available. Please set GROQ_API_KEY environment variable."
+        )
+    
+    try:
+        result = quiz_generator.generate_quiz(
+            topic=request.topic,
+            difficulty=request.difficulty,
+            question_types=request.question_types,
+            count=request.count
+        )
+        
+        if not result.get("success", False):
+            raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/quiz/adaptive")
+async def generate_adaptive_quiz(
+    topic: str,
+    student_level: str,
+    weak_areas: List[str] = [],
+    count: int = 5
+):
+    """Generate adaptive quiz based on student's weak areas"""
+    if not quiz_enabled or quiz_generator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Quiz generator is not available. Please set GROQ_API_KEY environment variable."
+        )
+    
+    try:
+        result = quiz_generator.generate_adaptive_quiz(
+            topic=topic,
+            student_level=student_level,
+            weak_areas=weak_areas,
+            count=count
+        )
+        
+        if not result.get("success", False):
+            raise HTTPException(status_code=500, detail=result.get("error", "Unknown error"))
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/quiz/adjust-difficulty")
+async def adjust_difficulty(request: AdaptiveDifficultyRequest):
+    """Adjust difficulty based on quiz performance"""
+    if not quiz_enabled or adaptive_engine is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Adaptive engine is not available. Please set GROQ_API_KEY environment variable."
+        )
+    
+    try:
+        result = adaptive_engine.adjust_difficulty(
+            current_difficulty=request.current_difficulty,
+            score_percent=request.score_percent,
+            attempted=request.attempted,
+            time_taken=request.time_taken,
+            weak_areas=request.weak_areas
+        )
+        
+        if not result.get("success", False):
+            raise HTTPException(status_code=500, detail="Difficulty adjustment failed")
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/quiz/status")
+async def quiz_status():
+    """Check quiz generator status"""
+    return {
+        "enabled": quiz_enabled,
+        "status": "ready" if quiz_enabled else "unavailable",
+        "message": "Quiz generator is ready" if quiz_enabled else "GROQ_API_KEY not configured"
+    }
