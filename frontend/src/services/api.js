@@ -42,6 +42,14 @@ export const healthCheck = async () => {
   return response.data;
 };
 
+// RAG Query Endpoint - For math questions and general queries
+export const queryRAG = async (question) => {
+  const response = await api.post('/api/rag/query', {
+    question,
+  });
+  return response.data;
+};
+
 // Resources Endpoints
 export const getRecommendedResources = async (studentProfile) => {
   const response = await api.post('/api/rag/recommendations', studentProfile);

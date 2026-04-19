@@ -20,6 +20,7 @@ import {
   AccordionDetails,
   Tab,
   Tabs,
+  Divider,
 } from '@mui/material';
 import {
   Psychology,
@@ -38,7 +39,7 @@ import { useStudent } from '../context/StudentContext';
 import { motion } from 'framer-motion';
 import QuizGenerator from '../components/QuizGenerator';
 import { exportStudyPlanToPDF } from '../utils/pdfExport';
-import { executeCoachWorkflow } from '../services/api';
+import { executeCoachWorkflow, queryRAG } from '../services/api';
 
 const StudyCoach = () => {
   const { studentData, riskAnalysis, updateStudyPlan } = useStudent();
@@ -48,6 +49,9 @@ const StudyCoach = () => {
   const [tabValue, setTabValue] = useState(0);
   const [quizOpen, setQuizOpen] = useState(false);
   const [quizSubject, setQuizSubject] = useState('Mathematics');
+  const [question, setQuestion] = useState('');
+  const [ragLoading, setRagLoading] = useState(false);
+  const [ragResult, setRagResult] = useState(null);
 
   // Generate AI Study Plan from backend
   const generateStudyPlan = async () => {
@@ -144,6 +148,23 @@ const StudyCoach = () => {
     generateStudyPlan();
   };
 
+  const handleAskQuestion = async (e) => {
+    e.preventDefault();
+    if (!question.trim()) return;
+
+    setRagLoading(true);
+    try {
+      const result = await queryRAG(question);
+      if (result.success) {
+        setRagResult(result);
+      }
+    } catch (error) {
+      console.error('Error asking question:', error);
+    } finally {
+      setRagLoading(false);
+    }
+  };
+
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
@@ -215,6 +236,171 @@ const StudyCoach = () => {
           </form>
         </CardContent>
       </Card>
+
+      {/* Ask Question Section */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <MenuBook sx={{ fontSize: 40, color: 'secondary.main', mr: 2 }} />
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                Ask a Question
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Get instant help with any study topic - math, science, or any subject
+              </Typography>
+            </Box>
+          </Box>
+          <form onSubmit={handleAskQuestion}>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Ask any question about your studies... E.g., What is the definition of a conic section? How do I solve this problem? Explain this concept..."
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              sx={{ mb: 2 }}
+              disabled={ragLoading}
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              color="secondary"
+              size="large"
+              disabled={ragLoading || !question.trim()}
+              startIcon={ragLoading ? <CircularProgress size={20} /> : <Assignment />}
+            >
+              {ragLoading ? 'Getting Answer...' : 'Ask Question'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Question Answer Display */}
+      {ragResult && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card sx={{ mb: 4 }}>
+            <CardContent>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Your Question
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: 'secondary.light' }}>
+                  <Typography variant="body1">{question}</Typography>
+                </Paper>
+              </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Answer
+                </Typography>
+                <Paper sx={{ p: 3, bgcolor: '#f0f9ff', borderRadius: 2 }}>
+                  <Box
+                    sx={{
+                      '& h1': { fontSize: '1.5rem', fontWeight: 700, mt: 2, mb: 1 },
+                      '& h2': { fontSize: '1.25rem', fontWeight: 600, mt: 2, mb: 1 },
+                      '& h3': { fontSize: '1.1rem', fontWeight: 600, mt: 1.5, mb: 0.5 },
+                      '& p': { lineHeight: 1.8, mb: 1 },
+                      '& ul, & ol': { ml: 2, mb: 1 },
+                      '& li': { mb: 0.5 },
+                      '& code': {
+                        bgcolor: '#e5e7eb',
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        fontFamily: 'monospace',
+                        fontSize: '0.9rem',
+                      },
+                      '& pre': {
+                        bgcolor: '#1f2937',
+                        color: '#f3f4f6',
+                        p: 2,
+                        borderRadius: 1,
+                        overflow: 'auto',
+                        mb: 1,
+                      },
+                      '& strong': { fontWeight: 700 },
+                      '& em': { fontStyle: 'italic' },
+                    }}
+                  >
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.8,
+                        fontFamily: 'inherit',
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: ragResult.answer
+                          .replace(/\n/g, '<br/>')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+                          .replace(/## (.*?)\n/g, '<h2>$1</h2>')
+                          .replace(/# (.*?)\n/g, '<h1>$1</h1>')
+                      }}
+                    />
+                  </Box>
+                </Paper>
+              </Box>
+
+              {ragResult.sources && ragResult.sources.length > 0 && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Sources Used ({ragResult.sources.length})
+                  </Typography>
+                  <List>
+                    {ragResult.sources.map((source, index) => (
+                      <ListItem key={index} sx={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', mb: 1 }}>
+                          <ListItemIcon sx={{ minWidth: 40 }}>
+                            <CheckCircle color="primary" />
+                          </ListItemIcon>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle2" fontWeight={600}>
+                              {source.metadata?.title || `Source ${index + 1}`}
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1, mt: 0.5 }}>
+                              <Chip
+                                label={`Rank ${source.rank}`}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
+                              <Chip
+                                label={`Score: ${source.rerank_score?.toFixed(2)}`}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </Box>
+                          </Box>
+                        </Box>
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+              )}
+
+              <Button
+                variant="outlined"
+                sx={{ mt: 2 }}
+                onClick={() => {
+                  setRagResult(null);
+                  setQuestion('');
+                }}
+              >
+                Ask Another Question
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Study Plan Results */}
       {studyPlan && (
