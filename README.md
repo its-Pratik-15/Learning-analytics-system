@@ -47,6 +47,17 @@ The Learning Analytics System uses machine learning algorithms to analyze studen
 - **Automated Pipeline**: Preprocessing, encoding, scaling, and prediction in one workflow
 - **Model Caching**: Efficient model loading with singleton pattern
 - **CORS Support**: Cross-origin resource sharing enabled
+- **Agentic Coach**: AI-powered study plan generation using LLM
+- **Quiz Generator**: Dynamic quiz question generation with adaptive difficulty
+- **RAG Pipeline**: Retrieval-Augmented Generation for personalized learning resources
+
+### Frontend
+- **React 18**: Modern UI framework with hooks
+- **Material-UI**: Professional component library
+- **Framer Motion**: Smooth animations and transitions
+- **Recharts**: Interactive data visualization
+- **Backend-Driven Data**: All data flows from backend APIs, no hardcoded values
+- **Real-time Integration**: Live connection to backend services
 
 ### Frontend
 - **Interactive UI**: User-friendly web interface
@@ -235,6 +246,38 @@ print(f"Confidence: {confidence}%")
 
 ## API Documentation
 
+### Data Flow Architecture
+
+The system follows a **backend-driven data flow** where all data is fetched from backend APIs:
+
+```
+Frontend Components
+    ↓
+API Service Layer (frontend/src/services/api.js)
+    ↓
+Backend Endpoints
+    ↓
+ML Models & Services
+    ↓
+Response Data
+    ↓
+Frontend Display
+```
+
+**Key Principles:**
+- ✅ All data comes from backend APIs
+- ✅ No hardcoded values in frontend
+- ✅ Dynamic content generation based on model responses
+- ✅ Fallback mechanisms for graceful degradation
+- ✅ Real-time integration with AI services
+
+**Frontend Integration Points:**
+- **StudyCoach.js**: Calls `/api/coach/workflow` for personalized study plans
+- **QuizGenerator.js**: Calls `/api/quiz/generate` for dynamic quiz questions
+- **Resources.js**: Calls `/api/rag/recommendations` for personalized resources
+- **Dashboard.js**: Displays data from `/api/predict` risk analysis
+- **Progress.js**: Tracks learning goals and progress metrics
+
 ### Endpoints
 
 #### `POST /predict`
@@ -296,6 +339,108 @@ Check API health status.
 ```json
 {
   "status": "healthy"
+}
+```
+
+#### `POST /api/coach/workflow`
+
+Generate personalized study plan using agentic coach.
+
+**Request Body:**
+```json
+{
+  "student_id": "student_001",
+  "risk_level": "average",
+  "current_grade": 15,
+  "study_time": 2,
+  "weak_areas": ["algebra"],
+  "strengths": ["geometry"],
+  "goal": "Improve math grades",
+  "performance_data": {"absences": 5, "failures": 0, "G1": 14, "G2": 15}
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "diagnosis": {
+    "strong_topics": ["geometry"],
+    "weak_topics": ["algebra"],
+    "learning_gaps": ["algebra fundamentals"],
+    "overall_level": "intermediate"
+  },
+  "study_plan": {
+    "goal": "improve algebra skills",
+    "duration_weeks": 8,
+    "milestones": [...]
+  },
+  "resources": [...],
+  "feedback": {...}
+}
+```
+
+#### `POST /api/quiz/generate`
+
+Generate practice quiz questions.
+
+**Request Body:**
+```json
+{
+  "topic": "Mathematics",
+  "difficulty": "intermediate",
+  "question_types": ["mcq"],
+  "count": 5
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "questions": [
+    {
+      "id": 1,
+      "type": "mcq",
+      "question": "What is the derivative of x²?",
+      "options": ["x", "2x", "x²", "2"],
+      "correct_answer": "B",
+      "explanation": "...",
+      "difficulty": "intermediate"
+    }
+  ],
+  "topic": "Mathematics",
+  "difficulty": "intermediate"
+}
+```
+
+#### `POST /api/rag/recommendations`
+
+Get personalized learning recommendations.
+
+**Request Body:**
+```json
+{
+  "risk_level": "average",
+  "current_grade": 15,
+  "study_time": 2,
+  "weak_areas": ["algebra"],
+  "strengths": ["geometry"]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "resources": [
+    {
+      "title": "Khan Academy - Algebra",
+      "url": "https://www.khanacademy.org/math/algebra",
+      "type": "course",
+      "description": "..."
+    }
+  ]
 }
 ```
 
